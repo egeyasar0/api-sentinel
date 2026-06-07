@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator, HttpUrl
 
 class CheckConfig(BaseModel):
@@ -28,7 +28,6 @@ class CheckConfig(BaseModel):
             raise ValueError(f"Method must be one of {allowed}")
         return upper_v
 
-from typing import Literal
 
 class AuthConfig(BaseModel):
     type: Literal["none", "bearer", "api_key"]

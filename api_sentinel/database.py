@@ -8,6 +8,7 @@ def get_connection(db_path: str = "api_sentinel.db") -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     return conn
 
+# TODO: Introduce a DatabaseManager lifecycle class to handle database initialization once instead of calling init_db before every operation.
 def init_db(db_path: str = "api_sentinel.db") -> None:
     """Initializes the database schema if it doesn't already exist."""
     with get_connection(db_path) as conn:

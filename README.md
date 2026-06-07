@@ -175,6 +175,11 @@ To view a summary of all past runs recorded in the local SQLite database:
 python main.py history
 ```
 
+For custom database locations, you can pass the `--db` option to any database command (`run`, `history`, `report`, `export`, `schedule`):
+```bash
+python main.py history --db my_custom_database.db
+```
+
 ---
 
 ## Exporting Reports

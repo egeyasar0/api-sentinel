@@ -72,6 +72,10 @@ def run_checks(config: ProjectConfig, timeout_seconds: float = 10.0) -> TestRunR
                     response = client.delete(url, headers=headers)
                 elif method == "PATCH":
                     response = client.patch(url, headers=headers, json=check.body)
+                elif method == "HEAD":
+                    response = client.head(url, headers=headers)
+                elif method == "OPTIONS":
+                    response = client.options(url, headers=headers)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
                 

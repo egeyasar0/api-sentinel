@@ -25,8 +25,8 @@ DB_PATH = os.getenv("API_SENTINEL_DB", "api_sentinel.db")
 @app.callback()
 def callback():
     """API Sentinel CLI"""
-    # Ensure database is initialized before any command executes
-    init_db(DB_PATH)
+    # Database is initialized individually by each command based on --db parameter
+    pass
 
 @app.command(name="run")
 def run_cmd(
@@ -41,6 +41,12 @@ def run_cmd(
         "--timeout",
         "-t",
         help="Timeout in seconds for each HTTP request."
+    ),
+    db: str = typer.Option(
+        "api_sentinel.db",
+        "--db",
+        envvar="API_SENTINEL_DB",
+        help="Path to the SQLite database file."
     )
 ):
     """
@@ -58,13 +64,14 @@ def run_cmd(
     console.print(f"[cyan]Running checks for project '[bold]{project_config.project_name}[/bold]' targeting {project_config.base_url}...[/cyan]")
     
     try:
+        init_db(db)
         run_result = run_checks(project_config, timeout_seconds=timeout)
     except Exception as e:
         console.print(f"[bold red]Execution Error during checks:[/bold red] {str(e)}")
         raise typer.Exit(code=1)
 
     try:
-        run_id = save_run(run_result, db_path=DB_PATH)
+        run_id = save_run(run_result, db_path=db)
         console.print(f"[green]Saved test run results in history database. (Run ID: {run_id})[/green]")
     except Exception as e:
         console.print(f"[bold yellow]Warning:[/bold yellow] Failed to save test history to database: {str(e)}")
@@ -72,12 +79,20 @@ def run_cmd(
     print_run_summary(run_result)
 
 @app.command(name="history")
-def history_cmd():
+def history_cmd(
+    db: str = typer.Option(
+        "api_sentinel.db",
+        "--db",
+        envvar="API_SENTINEL_DB",
+        help="Path to the SQLite database file."
+    )
+):
     """
     Shows previous test runs stored in the SQLite database.
     """
     try:
-        history = get_history(db_path=DB_PATH)
+        init_db(db)
+        history = get_history(db_path=db)
         print_history_table(history)
     except Exception as e:
         console.print(f"[bold red]Database Error:[/bold red] {str(e)}")
@@ -90,18 +105,25 @@ def report_cmd(
         "--run-id",
         "-r",
         help="ID of the test run to retrieve from history."
+    ),
+    db: str = typer.Option(
+        "api_sentinel.db",
+        "--db",
+        envvar="API_SENTINEL_DB",
+        help="Path to the SQLite database file."
     )
 ):
     """
     Shows a detailed report for a selected run ID.
     """
     try:
-        run_details = get_run(run_id, db_path=DB_PATH)
+        init_db(db)
+        run_details = get_run(run_id, db_path=db)
         if not run_details:
             console.print(f"[bold red]Error:[/bold red] Run with ID {run_id} not found in database.")
             raise typer.Exit(code=1)
             
-        check_results = get_check_results(run_id, db_path=DB_PATH)
+        check_results = get_check_results(run_id, db_path=db)
         print_detailed_run_report(run_details, check_results)
     except Exception as e:
         console.print(f"[bold red]Error retrieving report:[/bold red] {str(e)}")
@@ -120,6 +142,12 @@ def export_cmd(
         "--format",
         "-f",
         help="Export format (only 'json' is supported currently)."
+    ),
+    db: str = typer.Option(
+        "api_sentinel.db",
+        "--db",
+        envvar="API_SENTINEL_DB",
+        help="Path to the SQLite database file."
     )
 ):
     """
@@ -130,12 +158,13 @@ def export_cmd(
         raise typer.Exit(code=1)
 
     try:
-        run_details = get_run(run_id, db_path=DB_PATH)
+        init_db(db)
+        run_details = get_run(run_id, db_path=db)
         if not run_details:
             console.print(f"[bold red]Error:[/bold red] Run with ID {run_id} not found in database.")
             raise typer.Exit(code=1)
             
-        check_results = get_check_results(run_id, db_path=DB_PATH)
+        check_results = get_check_results(run_id, db_path=db)
         
         # Build composite structure
         export_data = {
@@ -304,6 +333,12 @@ def schedule_cmd(
         "--webhook-env",
         "-w",
         help="Environment variable name holding the Webhook URL."
+    ),
+    db: str = typer.Option(
+        "api_sentinel.db",
+        "--db",
+        envvar="API_SENTINEL_DB",
+        help="Path to the SQLite database file."
     )
 ):
     """
@@ -319,11 +354,12 @@ def schedule_cmd(
         raise typer.Exit(code=1)
 
     try:
+        init_db(db)
         run_scheduler(
             config=project_config,
             interval_seconds=every,
             webhook_env=webhook_env,
-            db_path=DB_PATH
+            db_path=db
         )
     except ValueError as e:
         console.print(f"[bold red]Validation Error:[/bold red] {str(e)}")

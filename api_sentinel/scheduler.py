@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 from datetime import datetime
 from typing import Optional
@@ -32,6 +33,8 @@ def run_scheduler(
     if interval_seconds < 5:
         raise ValueError("Interval must be at least 5 seconds to avoid tight CPU loops.")
 
+    shutdown_event = threading.Event()
+
     webhook_url = None
     if webhook_env:
         webhook_url = os.environ.get(webhook_env)
@@ -54,7 +57,7 @@ def run_scheduler(
                 console.print(f"[bold red]Scheduler Error executing checks:[/bold red] {str(e)}")
                 if run_once:
                     break
-                time.sleep(interval_seconds)
+                shutdown_event.wait(interval_seconds)
                 continue
 
             # 2. Save history
@@ -88,7 +91,7 @@ def run_scheduler(
             if run_once:
                 break
                 
-            time.sleep(interval_seconds)
+            shutdown_event.wait(interval_seconds)
 
     except KeyboardInterrupt:
         console.print("\n[bold green]Scheduler stopped by user.[/bold green]")

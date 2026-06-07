@@ -219,3 +219,56 @@ def test_runner_api_key_missing_env():
             run_checks(config)
         assert "Missing environment variable MY_API_KEY" in str(excinfo.value)
 
+def test_runner_head_method():
+    config = ProjectConfig(
+        project_name="HEAD Method Test",
+        base_url="http://localhost:8000",
+        checks=[
+            CheckConfig(name="Head Check", method="HEAD", path="/health", expected_status=200)
+        ]
+    )
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = "" # HEAD has no body
+    
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value.__enter__.return_value
+        mock_client.head.return_value = mock_response
+        
+        run_result = run_checks(config)
+        
+        mock_client.head.assert_called_once_with(
+            "http://localhost:8000/health",
+            headers={"User-Agent": "APISentinel/1.0"}
+        )
+        assert run_result.results[0].passed is True
+        assert run_result.results[0].actual_status == 200
+
+def test_runner_options_method():
+    config = ProjectConfig(
+        project_name="OPTIONS Method Test",
+        base_url="http://localhost:8000",
+        checks=[
+            CheckConfig(name="Options Check", method="OPTIONS", path="/health", expected_status=200)
+        ]
+    )
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = "GET, POST, OPTIONS"
+    
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value.__enter__.return_value
+        mock_client.options.return_value = mock_response
+        
+        run_result = run_checks(config)
+        
+        mock_client.options.assert_called_once_with(
+            "http://localhost:8000/health",
+            headers={"User-Agent": "APISentinel/1.0"}
+        )
+        assert run_result.results[0].passed is True
+        assert run_result.results[0].actual_status == 200
+
+
