@@ -1,0 +1,11 @@
+api_sentinel.db
+*.db
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+*.pyc
+dist/
+build/
+*.egg-info/
+.streamlit/

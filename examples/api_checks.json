@@ -1,0 +1,37 @@
+{
+  "project_name": "Demo API",
+  "base_url": "http://127.0.0.1:8000",
+  "checks": [
+    {
+      "name": "Health check",
+      "method": "GET",
+      "path": "/health",
+      "expected_status": 200,
+      "max_response_time_ms": 500,
+      "expected_fields": ["status"]
+    },
+    {
+      "name": "Get users",
+      "method": "GET",
+      "path": "/users",
+      "expected_status": 200,
+      "max_response_time_ms": 1000,
+      "expected_fields": ["users"]
+    },
+    {
+      "name": "Login",
+      "method": "POST",
+      "path": "/login",
+      "expected_status": 200,
+      "max_response_time_ms": 1000,
+      "body": {
+        "email": "test@example.com",
+        "password": "password123"
+      },
+      "expected_fields": [
+        "token",
+        "user.email"
+      ]
+    }
+  ]
+}

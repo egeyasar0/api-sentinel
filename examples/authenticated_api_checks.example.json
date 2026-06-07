@@ -1,0 +1,20 @@
+{
+  "project_name": "Authenticated API Example",
+  "base_url": "http://127.0.0.1:8000",
+  "auth": {
+    "type": "bearer",
+    "token_env": "MY_API_TOKEN"
+  },
+  "checks": [
+    {
+      "name": "Authenticated check",
+      "method": "GET",
+      "path": "/health",
+      "expected_status": 200,
+      "max_response_time_ms": 500,
+      "expected_fields": [
+        "status"
+      ]
+    }
+  ]
+}
