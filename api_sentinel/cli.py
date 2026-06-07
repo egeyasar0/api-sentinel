@@ -9,6 +9,7 @@ from api_sentinel.config_loader import load_config, ConfigError
 from api_sentinel.runner import run_checks
 from api_sentinel.database import init_db, save_run, get_history, get_run, get_check_results
 from api_sentinel.reporter import print_run_summary, print_history_table, print_detailed_run_report
+from api_sentinel.scheduler import run_scheduler
 
 app = typer.Typer(
     name="api-sentinel",
@@ -282,6 +283,53 @@ def init_config_cmd():
         console.print(f"\n[bold green]Success![/bold green] Configuration saved to [underline]{output_path}[/underline]")
     except Exception as e:
         console.print(f"[bold red]Failed to write config file: {str(e)}[/bold red]")
+        raise typer.Exit(code=1)
+
+@app.command(name="schedule")
+def schedule_cmd(
+    config: str = typer.Option(
+        ...,
+        "--config",
+        "-c",
+        help="Path to the JSON configuration file listing API checks."
+    ),
+    every: int = typer.Option(
+        300,
+        "--every",
+        "-e",
+        help="Interval in seconds between execution runs (minimum 5s)."
+    ),
+    webhook_env: Optional[str] = typer.Option(
+        None,
+        "--webhook-env",
+        "-w",
+        help="Environment variable name holding the Webhook URL."
+    )
+):
+    """
+    Runs API checks periodically at a set interval.
+    """
+    try:
+        project_config = load_config(config)
+    except ConfigError as e:
+        console.print(f"[bold red]Configuration Error:[/bold red] {str(e)}")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[bold red]Failed to load config:[/bold red] {str(e)}")
+        raise typer.Exit(code=1)
+
+    try:
+        run_scheduler(
+            config=project_config,
+            interval_seconds=every,
+            webhook_env=webhook_env,
+            db_path=DB_PATH
+        )
+    except ValueError as e:
+        console.print(f"[bold red]Validation Error:[/bold red] {str(e)}")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[bold red]Scheduler failed:[/bold red] {str(e)}")
         raise typer.Exit(code=1)
 
 if __name__ == "__main__":

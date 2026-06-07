@@ -118,6 +118,33 @@ python main.py run --config examples/api_checks.json
 
 ---
 
+## Scheduled Runs & Webhook Notifications
+
+API Sentinel provides a developer-focused, local scheduling command to execute your API health checks repeatedly at set intervals:
+
+```bash
+# Run checks every 300 seconds
+python main.py schedule --config examples/api_checks.json --every 300
+```
+
+### Validation
+- The `--every` interval must be at least 5 seconds to prevent accidental tight CPU execution loops.
+
+### Failure Webhook Alerts
+You can optionally configure a failure webhook to trigger notifications on runs containing failed checks. The webhook URL is resolved from an environment variable to keep configurations clean:
+
+```bash
+# Trigger webhook POST notifications using URL stored in environment variable API_SENTINEL_WEBHOOK_URL
+python main.py schedule --config examples/api_checks.json --every 300 --webhook-env API_SENTINEL_WEBHOOK_URL
+```
+
+### Limitations
+- **Local Loop Only**: The scheduling loop executes locally within the active CLI process. If you terminate the terminal command (e.g. via `Ctrl+C`), checks will stop running.
+- **Not a Production Monitoring System**: This local loop is meant as a developer-focused scheduling helper. It does not replace enterprise-grade uptime monitoring platforms.
+- **Secrets Resolution**: The webhook URLs must be loaded via environment variables and should not be persisted in configuration files, database tables, or test summary exports.
+
+---
+
 ## Viewing History
 
 To view a summary of all past runs recorded in the local SQLite database:

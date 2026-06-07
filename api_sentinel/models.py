@@ -80,6 +80,8 @@ class CheckResult(BaseModel):
     error_message: Optional[str] = None
 
 class TestRunResult(BaseModel):
+    __test__ = False
+    
     project_name: str
     started_at: str
     finished_at: str
