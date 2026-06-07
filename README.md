@@ -15,6 +15,8 @@ API Sentinel is a local, configuration-driven utility designed to help developer
 - **Configuration-Driven**: Define check suites in a simple JSON file.
 - **Contract & Field Validation**: Helps validate that response status codes match expectations and checking for the presence of specific top-level or nested keys (e.g., `user.email`).
 - **HTTP client execution**: Powered by `httpx` to support common HTTP verbs (GET, POST, PUT, DELETE, PATCH) with timeout limits.
+- **Local Scheduled Runs**: Runs checks repeatedly at a chosen interval while the CLI process is active.
+- **Webhook Alerts**: Sends optional failure notifications for failed runs using a webhook URL loaded from an environment variable.
 - **Local History Tracking**: Records run metrics and check logs into a local SQLite database file.
 - **Rich Terminal Reports**: Colorized console outputs summarizing execution pass rates and individual endpoint statuses.
 - **Local Web Dashboard**: Built with Streamlit for inspecting historical runs and viewing latency trends.
@@ -38,27 +40,40 @@ API Sentinel is a local, configuration-driven utility designed to help developer
 
 ```text
 api_sentinel/
-├── __init__.py          # Package initializer
-├── cli.py               # Typer commands implementation
-├── config_loader.py     # JSON loader and Pydantic validator
-├── database.py          # SQLite schema creation and queries
-├── models.py            # Pydantic schema representations
-├── runner.py            # httpx check executor
-├── validator.py         # Response status, latency, and field existence checks
-├── dashboard.py         # Streamlit dashboard script
+  cli.py
+  config_loader.py
+  dashboard.py
+  database.py
+  models.py
+  notifier.py
+  reporter.py
+  runner.py
+  scheduler.py
+  validator.py
+
 examples/
-├── api_checks.json      # Sample config file
-└── demo_api.py          # FastAPI mock API for testing
+  api_checks.json
+  authenticated_api_checks.example.json
+  demo_api.py
+
 tests/
-├── test_config_loader.py
-├── test_runner.py
-└── test_validator.py
-.github/
-└── workflows/
-    └── tests.yml        # CI Pipeline setup
-main.py                  # CLI entrypoint script
-requirements.txt         # Package dependencies list
-pytest.ini               # Test configuration
+  test_config_loader.py
+  test_runner.py
+  test_scheduler.py
+  test_validator.py
+
+assets/
+  logo.png
+
+screenshots/
+  cli-report.png
+  history.png
+  dashboard.png
+
+.github/workflows/tests.yml
+main.py
+requirements.txt
+pytest.ini
 ```
 
 ---
@@ -72,13 +87,21 @@ pytest.ini               # Test configuration
    ```
 
 2. **Set up a Virtual Environment**:
-   ```bash
-   python -m venv .venv
-   # On Windows:
-   .venv\Scripts\activate
-   # On macOS/Linux:
-   source .venv/bin/activate
-   ```
+   * **Windows (PowerShell)**:
+     ```powershell
+     python -m venv .venv
+     .venv\Scripts\Activate.ps1
+     ```
+   * **Windows (Command Prompt)**:
+     ```cmd
+     python -m venv .venv
+     .venv\Scripts\activate.bat
+     ```
+   * **macOS/Linux**:
+     ```bash
+     python -m venv .venv
+     source .venv/bin/activate
+     ```
 
 3. **Install Dependencies**:
    ```bash
@@ -263,10 +286,11 @@ An example configuration file (`examples/api_checks.json`) looks like this:
 
 ![Streamlit Dashboard](screenshots/dashboard.png)
 
----
-
 ## Future Improvements
 
-- **Scheduled Checks**: Run suites periodically (cron-like execution).
-- **Notifications**: Send alerts to Webhooks (Slack, Discord) or Email upon check failure.
-- **Dynamic Header Authentication**: Fetch tokens from an authentication endpoint before running subsequent checks.
+- **OpenAPI Schema Validation**: Auto-generate checks from OpenAPI descriptions.
+- **HTML Report Export**: Produce standalone HTML check files for developer auditing.
+- **More Advanced Notification Targets**: Support for native Slack, Discord, and Email providers.
+- **Retry Policies**: Add standard retry strategies on network timeouts and glitches.
+- **Improved Nested JSON Validation**: Support complex JSON path traversals.
+- **Public API Example Configuration**: Ready-made templates for public services checks.
