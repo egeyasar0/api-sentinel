@@ -1,0 +1,47 @@
+{
+  "project_name": "JSONPlaceholder Public API",
+  "base_url": "https://jsonplaceholder.typicode.com",
+  "auth": {
+    "type": "none"
+  },
+  "checks": [
+    {
+      "name": "Get post by ID",
+      "method": "GET",
+      "path": "/posts/1",
+      "expected_status": 200,
+      "max_response_time_ms": 3000,
+      "expected_fields": [
+        "userId",
+        "id",
+        "title",
+        "body"
+      ]
+    },
+    {
+      "name": "Get user by ID",
+      "method": "GET",
+      "path": "/users/1",
+      "expected_status": 200,
+      "max_response_time_ms": 3000,
+      "expected_fields": [
+        "id",
+        "name",
+        "email"
+      ]
+    },
+    {
+      "name": "Get todo by ID",
+      "method": "GET",
+      "path": "/todos/1",
+      "expected_status": 200,
+      "max_response_time_ms": 3000,
+      "expected_fields": [
+        "userId",
+        "id",
+        "title",
+        "completed"
+      ]
+    }
+  ]
+}

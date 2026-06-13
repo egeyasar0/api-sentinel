@@ -55,6 +55,7 @@ examples/
   api_checks.json
   authenticated_api_checks.example.json
   demo_api.py
+  public_api_checks.json
 
 tests/
   test_config_loader.py
@@ -138,6 +139,18 @@ To execute the check suite against your API:
 ```bash
 python main.py run --config examples/api_checks.json
 ```
+
+---
+
+## Testing a Public API
+
+API Sentinel can also test external endpoints. An example configuration file is provided to verify a public API:
+
+```bash
+python main.py run --config examples/public_api_checks.json
+```
+
+*Note: Results of external API checks may vary depending on internet connectivity, network latency, and the availability of the target service.*
 
 ---
 
