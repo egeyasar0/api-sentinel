@@ -197,15 +197,40 @@ python main.py history --db my_custom_database.db
 
 ## Exporting Reports
 
-To retrieve detailed statistics for a specific run in JSON format:
+To see past runs and identify their **Run IDs**, display the history table:
+```bash
+python main.py history
+```
+
+To view a detailed CLI report for a specific run:
 ```bash
 python main.py report --run-id 1
 ```
 
+### JSON Export
 To export the run data as raw JSON (useful for integration with other tools):
-```bash
-python main.py export --run-id 1 --format json
-```
+- **Stdout output**:
+  ```bash
+  python main.py export --run-id 1 --format json
+  ```
+- **File output**:
+  ```bash
+  python main.py export --run-id 1 --format json --output reports/run-1.json
+  ```
+
+### HTML Export
+To export the run data as a standalone HTML file that can be opened in any web browser:
+- **Default path** (saves to `reports/run-1.html`):
+  ```bash
+  python main.py export --run-id 1 --format html
+  ```
+- **Custom path**:
+  ```bash
+  python main.py export --run-id 1 --format html --output reports/run-1.html
+  ```
+
+*Note: The generated HTML file is fully self-contained, meaning it embeds all required CSS styling directly. It requires no external network connections (no CDNs) and no JavaScript to load, making it fast and easy to archive or share.*
+
 
 ---
 
@@ -307,7 +332,6 @@ An example configuration file (`examples/api_checks.json`) looks like this:
 ## Future Improvements
 
 - **OpenAPI Schema Validation**: Auto-generate checks from OpenAPI descriptions.
-- **HTML Report Export**: Produce standalone HTML check files for developer auditing.
 - **More Advanced Notification Targets**: Support for native Slack, Discord, and Email providers.
 - **Retry Policies**: Add standard retry strategies on network timeouts and glitches.
 - **Improved Nested JSON Validation**: Support complex JSON path traversals.

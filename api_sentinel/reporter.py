@@ -166,3 +166,231 @@ def print_detailed_run_report(run_details: Dict[str, Any], check_results: List[D
 
     console.print(table)
     console.print("\n")
+
+
+def generate_html_report(run_details: Dict[str, Any], check_results: List[Dict[str, Any]]) -> str:
+    """
+    Generates a standalone HTML report from execution statistics and check logs.
+    """
+    project_name = html_escape(run_details.get("project_name", "Unknown Project"))
+    run_id = run_details.get("id", "N/A")
+    started_at = html_escape(run_details.get("started_at", "N/A").replace("T", " ").split(".")[0].replace("Z", ""))
+    finished_at = html_escape(run_details.get("finished_at", "N/A").replace("T", " ").split(".")[0].replace("Z", ""))
+    total_checks = run_details.get("total_checks", 0)
+    passed_checks = run_details.get("passed_checks", 0)
+    failed_checks = run_details.get("failed_checks", 0)
+    avg_latency = run_details.get("average_response_time_ms", 0.0)
+
+    rows = []
+    for check in check_results:
+        check_name = html_escape(check.get("check_name", "N/A"))
+        method = html_escape(check.get("method", "GET"))
+        url = html_escape(check.get("url", ""))
+        expected_status = check.get("expected_status", 200)
+        actual_status = check.get("actual_status")
+        actual_status_str = str(actual_status) if actual_status is not None else "-"
+        response_time = check.get("response_time_ms", 0.0)
+        passed = check.get("passed") == 1
+        
+        verdict_badge = '<span class="badge pass">PASS</span>' if passed else '<span class="badge fail">FAIL</span>'
+        
+        status_style = 'color: #00876c; font-weight: bold;' if passed else 'color: #ca1a1a; font-weight: bold;'
+        if actual_status is not None and actual_status != expected_status:
+            status_style = 'color: #ca1a1a; font-weight: bold;'
+            
+        err_msg = html_escape(check.get("error_message") or "")
+        details_cell = ""
+        if not passed:
+            details_cell = f'<span class="error-message">{err_msg or "Validation failed"}</span>'
+        else:
+            details_cell = '<span style="color: #777;">OK</span>'
+
+        rows.append(f"""
+                <tr>
+                    <td><strong>{check_name}</strong></td>
+                    <td><span class="method">{method}</span></td>
+                    <td><span class="code">{url}</span></td>
+                    <td>{expected_status}</td>
+                    <td><span style="{status_style}">{actual_status_str}</span></td>
+                    <td>{response_time:.1f} ms</td>
+                    <td>{verdict_badge}</td>
+                    <td>{details_cell}</td>
+                </tr>""")
+
+    tbody_rows = "\n".join(rows)
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Sentinel Report - {project_name} (Run #{run_id})</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.5;
+        }}
+        .container {{
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }}
+        header {{
+            border-bottom: 2px solid #eef2f5;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }}
+        h1 {{
+            margin: 0;
+            color: #1e88e5;
+            font-size: 2rem;
+        }}
+        .run-meta {{
+            color: #666;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }}
+        .stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }}
+        .stat-card {{
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 1.25rem;
+            text-align: center;
+            border-top: 4px solid #ccd1d9;
+        }}
+        .stat-card.passed {{ border-top-color: #2ec4b6; }}
+        .stat-card.failed {{ border-top-color: #e71d36; }}
+        .stat-value {{
+            font-size: 1.75rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }}
+        .stat-label {{
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #777;
+            letter-spacing: 0.5px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }}
+        th, td {{
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eef2f5;
+        }}
+        th {{
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }}
+        tr:hover {{
+            background-color: #fcfdfe;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }}
+        .badge.pass {{
+            background-color: #e6f7f4;
+            color: #00876c;
+        }}
+        .badge.fail {{
+            background-color: #fdf2f2;
+            color: #ca1a1a;
+        }}
+        .method {{
+            font-family: monospace;
+            font-weight: bold;
+        }}
+        .error-message {{
+            font-size: 0.85rem;
+            color: #ca1a1a;
+            word-break: break-all;
+        }}
+        .code {{
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>API Sentinel Report - {project_name}</h1>
+            <div class="run-meta">
+                <strong>Run ID:</strong> #{run_id} &bull; 
+                <strong>Executed At:</strong> {started_at} &bull; 
+                <strong>Finished At:</strong> {finished_at}
+            </div>
+        </header>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{total_checks}</div>
+                <div class="stat-label">Total Checks</div>
+            </div>
+            <div class="stat-card passed">
+                <div class="stat-value" style="color: #00876c;">{passed_checks}</div>
+                <div class="stat-label">Passed</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-value" style="color: #ca1a1a;">{failed_checks}</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{avg_latency:.1f} ms</div>
+                <div class="stat-label">Avg Response Time</div>
+            </div>
+        </div>
+        
+        <h2>Endpoint Check Results</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Check Name</th>
+                    <th>Method</th>
+                    <th>URL</th>
+                    <th>Expected</th>
+                    <th>Actual</th>
+                    <th>Latency</th>
+                    <th>Verdict</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>{tbody_rows}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+"""
+    return html_content
+
+
+def html_escape(text: str) -> str:
+    """Escapes HTML special characters in string values."""
+    if not isinstance(text, str):
+        return str(text)
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#x27;")
+

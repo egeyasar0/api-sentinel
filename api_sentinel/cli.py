@@ -8,7 +8,7 @@ from rich.console import Console
 from api_sentinel.config_loader import load_config, ConfigError
 from api_sentinel.runner import run_checks
 from api_sentinel.database import init_db, save_run, get_history, get_run, get_check_results
-from api_sentinel.reporter import print_run_summary, print_history_table, print_detailed_run_report
+from api_sentinel.reporter import print_run_summary, print_history_table, print_detailed_run_report, generate_html_report
 from api_sentinel.scheduler import run_scheduler
 
 app = typer.Typer(
@@ -141,7 +141,13 @@ def export_cmd(
         "json",
         "--format",
         "-f",
-        help="Export format (only 'json' is supported currently)."
+        help="Export format ('json' or 'html')."
+    ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Optional file path to write the exported report. If not provided for html, defaults to reports/run-<run_id>.html"
     ),
     db: str = typer.Option(
         "api_sentinel.db",
@@ -151,10 +157,11 @@ def export_cmd(
     )
 ):
     """
-    Exports a run report as JSON.
+    Exports a run report as JSON or HTML.
     """
-    if format.lower() != "json":
-        console.print(f"[bold red]Error:[/bold red] Unsupported format '{format}'. Only 'json' is supported.")
+    format_lower = format.lower()
+    if format_lower not in ["json", "html"]:
+        console.print(f"[bold red]Error:[/bold red] Unsupported format '{format}'. Supported formats are 'json' and 'html'.")
         raise typer.Exit(code=1)
 
     try:
@@ -166,34 +173,66 @@ def export_cmd(
             
         check_results = get_check_results(run_id, db_path=db)
         
-        # Build composite structure
-        export_data = {
-            "run_id": run_details["id"],
-            "project_name": run_details["project_name"],
-            "started_at": run_details["started_at"],
-            "finished_at": run_details["finished_at"],
-            "total_checks": run_details["total_checks"],
-            "passed_checks": run_details["passed_checks"],
-            "failed_checks": run_details["failed_checks"],
-            "average_response_time_ms": run_details["average_response_time_ms"],
-            "results": []
-        }
-        
-        for check in check_results:
-            export_data["results"].append({
-                "check_name": check["check_name"],
-                "method": check["method"],
-                "url": check["url"],
-                "expected_status": check["expected_status"],
-                "actual_status": check["actual_status"],
-                "response_time_ms": check["response_time_ms"],
-                "passed": True if check["passed"] == 1 else False,
-                "error_message": check["error_message"]
-            })
+        if format_lower == "json":
+            # Build composite structure
+            export_data = {
+                "run_id": run_details["id"],
+                "project_name": run_details["project_name"],
+                "started_at": run_details["started_at"],
+                "finished_at": run_details["finished_at"],
+                "total_checks": run_details["total_checks"],
+                "passed_checks": run_details["passed_checks"],
+                "failed_checks": run_details["failed_checks"],
+                "average_response_time_ms": run_details["average_response_time_ms"],
+                "results": []
+            }
             
-        # Print JSON to stdout so it can be redirected or piped
-        print(json.dumps(export_data, indent=2))
-        
+            for check in check_results:
+                export_data["results"].append({
+                    "check_name": check["check_name"],
+                    "method": check["method"],
+                    "url": check["url"],
+                    "expected_status": check["expected_status"],
+                    "actual_status": check["actual_status"],
+                    "response_time_ms": check["response_time_ms"],
+                    "passed": True if check["passed"] == 1 else False,
+                    "error_message": check["error_message"]
+                })
+                
+            json_str = json.dumps(export_data, indent=2)
+            if output:
+                try:
+                    out_path = os.path.abspath(output)
+                    parent_dir = os.path.dirname(out_path)
+                    if parent_dir:
+                        os.makedirs(parent_dir, exist_ok=True)
+                    with open(out_path, "w", encoding="utf-8") as f:
+                        f.write(json_str)
+                    console.print(f"[green]Successfully exported JSON report to {output}[/green]")
+                except Exception as e:
+                    console.print(f"[bold red]Error writing JSON file:[/bold red] {str(e)}")
+                    raise typer.Exit(code=1)
+            else:
+                print(json_str)
+                
+        elif format_lower == "html":
+            html_content = generate_html_report(run_details, check_results)
+            dest_path = output if output else f"reports/run-{run_id}.html"
+            
+            try:
+                out_path = os.path.abspath(dest_path)
+                parent_dir = os.path.dirname(out_path)
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+                with open(out_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                console.print(f"[green]Successfully exported HTML report to {dest_path}[/green]")
+            except Exception as e:
+                console.print(f"[bold red]Error writing HTML file:[/bold red] {str(e)}")
+                raise typer.Exit(code=1)
+                
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[bold red]Error exporting report:[/bold red] {str(e)}")
         raise typer.Exit(code=1)
