@@ -27,4 +27,4 @@ jobs:
 
     - name: Run Tests with Pytest
       run: |
-        python -m pytest tests/ -v
+        pytest --cov=api_sentinel --cov-report=term-missing

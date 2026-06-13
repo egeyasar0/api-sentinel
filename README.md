@@ -4,22 +4,30 @@
 
 # API Sentinel
 
-A lightweight API health check and contract testing tool for developers.
+[![Tests](https://github.com/egeyasar0/api-sentinel/actions/workflows/tests.yml/badge.svg)](https://github.com/egeyasar0/api-sentinel/actions/workflows/tests.yml)
 
-API Sentinel is a local, configuration-driven utility designed to help developers validate HTTP API responses, measure latency, verify response structures, and track execution history.
+A lightweight API health check and contract testing tool for developers, useful for development and lightweight auditing.
 
 ---
 
 ## Features
 
-- **Configuration-Driven**: Define check suites in a simple JSON file.
-- **Contract & Field Validation**: Helps validate that response status codes match expectations and checking for the presence of specific top-level or nested keys (e.g., `user.email`).
-- **HTTP client execution**: Powered by `httpx` to support common HTTP verbs (GET, POST, PUT, DELETE, PATCH) with timeout limits.
-- **Local Scheduled Runs**: Runs checks repeatedly at a chosen interval while the CLI process is active.
-- **Webhook Alerts**: Sends optional failure notifications for failed runs using a webhook URL loaded from an environment variable.
-- **Local History Tracking**: Records run metrics and check logs into a local SQLite database file.
-- **Rich Terminal Reports**: Colorized console outputs summarizing execution pass rates and individual endpoint statuses.
-- **Local Web Dashboard**: Built with Streamlit for inspecting historical runs and viewing latency trends.
+- **Configuration-Driven API Checks**: Define API checks in a simple JSON file.
+- **Status Code & Response Field Validation**: Verify expected status codes and check for specific top-level or nested keys in JSON responses.
+- **Retry Policies for Transient Failures**: Automatically retry transient errors (timeouts, connection issues, or unexpected 5xx responses) with configurable attempts and backoffs.
+- **Optional Concurrent Checks**: Speed up test suite execution using the `--concurrency` CLI option.
+- **Local Scheduled Runs**: Periodically run health check suites locally at a chosen interval.
+- **Webhook Failure Alerts**: Send POST webhook alerts to an endpoint loaded securely from environment variables.
+- **Telegram Failure Alerts**: Send failure alerts directly to a Telegram chat using environment variables (`API_SENTINEL_TELEGRAM_BOT_TOKEN`, `API_SENTINEL_TELEGRAM_CHAT_ID`).
+- **SQLite History Tracking**: Automatically save all test run metadata and individual check results to a local SQLite database.
+- **Rich Terminal Reports**: Visual execution summaries with colorized tables in the terminal.
+- **HTML Report Export**: Export stand-alone, self-contained HTML report files with inline styles.
+- **Streamlit Dashboard**: A local web dashboard with project, status, and date range filters plus check search.
+- **Public API Example Config**: A ready-made config file for testing external public endpoints.
+- **Environment-Variable Based Auth**: Support for standard No Auth, Bearer Token, and API Key authentication headers.
+- **Dynamic Token Fetch Support**: Programmatically log in once per run, extract a token from JSON response paths, and apply it to subsequent requests.
+- **Custom Database Path**: Target any SQLite database file location using the `--db` option.
+- **Comprehensive HTTP Verb Support**: Support for `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, and `OPTIONS` request methods.
 
 ---
 
@@ -40,25 +48,29 @@ API Sentinel is a local, configuration-driven utility designed to help developer
 
 ```text
 api_sentinel/
-  cli.py
-  config_loader.py
-  dashboard.py
-  database.py
-  models.py
-  notifier.py
-  reporter.py
-  runner.py
-  scheduler.py
-  validator.py
+  cli.py           # CLI commands definition
+  config_loader.py # Loader and parser for config files
+  dashboard.py     # Streamlit web dashboard
+  database.py      # SQLite database access and operations
+  models.py        # Pydantic configuration schemas and validation
+  notifier.py      # Webhook and Telegram alert dispatcher
+  reporter.py      # CLI execution tables and HTML report generators
+  runner.py        # Synchronous and concurrent check execution loop
+  scheduler.py     # Local scheduled timing loops
+  validator.py     # Response status and body validation helpers
 
 examples/
   api_checks.json
   authenticated_api_checks.example.json
   demo_api.py
   public_api_checks.json
+  token_fetch_api_checks.example.json
 
 tests/
+  test_auth_token_fetch.py
+  test_cli_export.py
   test_config_loader.py
+  test_database.py
   test_runner.py
   test_scheduler.py
   test_validator.py
@@ -158,25 +170,29 @@ python main.py run --config examples/public_api_checks.json
 
 Here is a typical end-to-end workflow to run, audit, and schedule local API health checks:
 
-1. **Run a health check suite**:
+1. **Run a health check suite sequentially**:
    ```bash
    python main.py run --config examples/public_api_checks.json
    ```
-2. **Find the Run ID in your history**:
+2. **Run a health check suite concurrently** (e.g. concurrency limit of 5):
+   ```bash
+   python main.py run --config examples/public_api_checks.json --concurrency 5
+   ```
+3. **Find the Run ID in your history**:
    ```bash
    python main.py history
    ```
-3. **Export a standalone HTML report** (for sharing or archiving):
+4. **Export a standalone HTML report** (for sharing or archiving):
    ```bash
    python main.py export --run-id <run_id> --format html --output reports/latest.html
    ```
-4. **Schedule ongoing local health checks** (repeating every 5 minutes):
+5. **Schedule ongoing local health checks** (repeating every 5 minutes):
    ```bash
    python main.py schedule --config examples/public_api_checks.json --every 300
    ```
 
 > [!NOTE]
-> All exported reports and local run data are saved under the `reports/` folder. These generated files are intended for local audit use and are ignored in `.gitignore`, so they should generally not be committed to source control.
+> Exported report files are saved under the `reports/` folder by default. Local run history is stored in the SQLite database file. Generated reports and local database files are intended for local use and should generally not be committed to source control.
 
 ---
 
@@ -199,6 +215,13 @@ You can optionally configure a failure webhook to trigger notifications on runs 
 # Trigger webhook POST notifications using URL stored in environment variable API_SENTINEL_WEBHOOK_URL
 python main.py schedule --config examples/api_checks.json --every 300 --webhook-env API_SENTINEL_WEBHOOK_URL
 ```
+
+### Telegram Failure Alerts
+You can also configure failure alerts to be sent directly to a Telegram chat. The alerts will trigger automatically when the following environment variables are present in your session:
+* `API_SENTINEL_TELEGRAM_BOT_TOKEN`: Your Telegram Bot API token.
+* `API_SENTINEL_TELEGRAM_CHAT_ID`: The chat ID of the target channel or user.
+
+These alerts are sent directly from the process memory and the credentials are never printed, logged, or saved to the database.
 
 ### Limitations
 - **Local Loop Only**: The scheduling loop executes locally within the active CLI process. If you terminate the terminal command (e.g. via `Ctrl+C`), checks will stop running.
@@ -269,7 +292,7 @@ streamlit run api_sentinel/dashboard.py
 
 ---
 
-## Running Tests
+## Running Tests & Coverage
 
 Automated tests can be executed with `pytest` from the root directory:
 
@@ -277,9 +300,9 @@ Automated tests can be executed with `pytest` from the root directory:
 pytest
 ```
 
-For verbose output:
+To run tests with code coverage metrics and show missing lines:
 ```bash
-pytest -v
+pytest --cov=api_sentinel --cov-report=term-missing
 ```
 
 ---
@@ -290,6 +313,23 @@ API Sentinel provides basic, environment-variable based authentication support f
 - **No Auth**: No authorization header will be attached.
 - **Bearer Token**: Reads a Bearer token value from a configured environment variable name at runtime and injects `Authorization: Bearer <value>`.
 - **API Key Header**: Reads an API key value from a configured environment variable name at runtime and injects `<key_name>: <value>`.
+- **Dynamic Token Fetch**: Logs in dynamically once per execution run, extracts a token from the JSON response using a dot path, and injects it into subsequent check requests.
+
+To configure dynamic token fetch:
+```json
+"auth": {
+  "type": "token_fetch",
+  "token_url": "/login",
+  "method": "POST",
+  "body": {
+    "email": "API_SENTINEL_DEMO_EMAIL",
+    "password": "API_SENTINEL_DEMO_PASSWORD"
+  },
+  "token_json_path": "token",
+  "header_name": "Authorization",
+  "header_prefix": "Bearer"
+}
+```
 
 ### Design Guidelines:
 - Real secrets are resolved dynamically from your environment at execution runtime. **They are never stored in the configuration file.** The configuration file only contains the *name* of the environment variable.

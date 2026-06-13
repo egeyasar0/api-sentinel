@@ -36,11 +36,19 @@ class CheckConfig(BaseModel):
 
 
 class AuthConfig(BaseModel):
-    type: Literal["none", "bearer", "api_key"]
+    type: Literal["none", "bearer", "api_key", "token_fetch"]
     token_env: Optional[str] = Field(None, description="Environment variable name for Bearer token")
     key_name: Optional[str] = Field(None, description="Header key name for API Key")
     key_env: Optional[str] = Field(None, description="Environment variable name for API Key")
     location: Literal["header"] = Field("header")
+    
+    # token_fetch fields
+    token_url: Optional[str] = Field(None, description="URL or path to fetch token from")
+    method: Optional[str] = Field("POST", description="HTTP method to fetch token (POST, GET, etc.)")
+    body: Optional[Dict[str, str]] = Field(None, description="Request body configuration mapping payload fields to environment variable names")
+    token_json_path: Optional[str] = Field("token", description="JSON dot path to extract the token from the response")
+    header_name: Optional[str] = Field("Authorization", description="Target request header name to place the token in")
+    header_prefix: Optional[str] = Field("Bearer", description="Prefix for the header value, e.g. Bearer")
 
     @model_validator(mode="after")
     def validate_auth_params(self) -> 'AuthConfig':
@@ -52,6 +60,15 @@ class AuthConfig(BaseModel):
                 raise ValueError("key_name is required when auth type is 'api_key'")
             if not self.key_env:
                 raise ValueError("key_env is required when auth type is 'api_key'")
+        elif self.type == "token_fetch":
+            if not self.token_url:
+                raise ValueError("token_url is required when auth type is 'token_fetch'")
+            if not self.body:
+                raise ValueError("body is required when auth type is 'token_fetch'")
+            if not self.token_json_path:
+                raise ValueError("token_json_path is required when auth type is 'token_fetch'")
+            if not self.header_name:
+                raise ValueError("header_name is required when auth type is 'token_fetch'")
         return self
 
 class ProjectConfig(BaseModel):

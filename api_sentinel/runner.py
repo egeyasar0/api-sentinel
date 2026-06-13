@@ -126,16 +126,10 @@ async def execute_check_async_with_retries(
             
     return result
 
-def run_checks(config: ProjectConfig, timeout_seconds: float = 10.0, concurrency: int = 1) -> TestRunResult:
+def resolve_auth_headers(config: ProjectConfig) -> Dict[str, str]:
     """
-    Executes all checks defined in the ProjectConfig using httpx (either sequentially or concurrently).
+    Resolves request authentication headers based on config type (bearer, api_key, token_fetch).
     """
-    if concurrency < 1:
-        raise ValueError("Concurrency must be at least 1.")
-
-    started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    
-    # Resolve authentication headers from environment variables
     auth_headers = {}
     if config.auth and config.auth.type != "none":
         if config.auth.type == "bearer":
@@ -151,6 +145,81 @@ def run_checks(config: ProjectConfig, timeout_seconds: float = 10.0, concurrency
             if not key:
                 raise ValueError(f"Missing environment variable {env_var} required for API key authentication.")
             auth_headers[key_name] = key
+        elif config.auth.type == "token_fetch":
+            token_url = config.auth.token_url
+            if not token_url:
+                raise ValueError("token_url is required when auth type is 'token_fetch'")
+            
+            if token_url.startswith("http://") or token_url.startswith("https://"):
+                full_token_url = token_url
+            else:
+                full_token_url = f"{config.base_url}{token_url}"
+                
+            method = (config.auth.method or "POST").upper()
+            body_config = config.auth.body or {}
+            
+            resolved_body = {}
+            for k, v in body_config.items():
+                json_key = k[:-4] if k.endswith("_env") else k
+                env_val = os.environ.get(v)
+                if not env_val:
+                    raise ValueError(f"Missing environment variable required for token fetch: {v}")
+                resolved_body[json_key] = env_val
+                
+            try:
+                with httpx.Client(timeout=10.0) as client:
+                    if method == "POST":
+                        res = client.post(full_token_url, json=resolved_body)
+                    elif method == "GET":
+                        res = client.get(full_token_url, params=resolved_body)
+                    else:
+                        raise ValueError(f"Unsupported method for token fetch: {method}")
+                    
+                    if res.status_code >= 400:
+                        raise ValueError(f"Token fetch failed with status code {res.status_code}.")
+                    
+                    try:
+                        res_json = res.json()
+                    except Exception:
+                        raise ValueError("Token fetch response is not valid JSON.")
+            except httpx.RequestError as e:
+                raise ValueError(f"Token fetch request failed: {str(e)}")
+            except Exception as e:
+                raise ValueError(f"Token fetch failed: {str(e)}")
+                
+            json_path = config.auth.token_json_path or "token"
+            parts = json_path.split(".")
+            curr = res_json
+            for part in parts:
+                if isinstance(curr, dict) and part in curr:
+                    curr = curr[part]
+                else:
+                    raise ValueError(f"Token JSON path '{json_path}' not found in response.")
+            
+            if not isinstance(curr, str):
+                raise ValueError(f"Extracted token from path '{json_path}' is not a string.")
+                
+            token = curr
+            header_name = config.auth.header_name or "Authorization"
+            prefix = config.auth.header_prefix
+            if prefix:
+                auth_headers[header_name] = f"{prefix} {token}"
+            else:
+                auth_headers[header_name] = token
+                
+    return auth_headers
+
+def run_checks(config: ProjectConfig, timeout_seconds: float = 10.0, concurrency: int = 1) -> TestRunResult:
+    """
+    Executes all checks defined in the ProjectConfig using httpx (either sequentially or concurrently).
+    """
+    if concurrency < 1:
+        raise ValueError("Concurrency must be at least 1.")
+
+    started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    
+    # Resolve authentication headers from environment variables
+    auth_headers = resolve_auth_headers(config)
 
     results = []
 

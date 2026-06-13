@@ -1,0 +1,25 @@
+{
+  "project_name": "Protected API Project",
+  "base_url": "http://127.0.0.1:8000",
+  "auth": {
+    "type": "token_fetch",
+    "token_url": "/login",
+    "method": "POST",
+    "body": {
+      "email": "API_SENTINEL_DEMO_EMAIL",
+      "password": "API_SENTINEL_DEMO_PASSWORD"
+    },
+    "token_json_path": "token",
+    "header_name": "Authorization",
+    "header_prefix": "Bearer"
+  },
+  "checks": [
+    {
+      "name": "Get protected data",
+      "method": "GET",
+      "path": "/protected/data",
+      "expected_status": 200,
+      "max_response_time_ms": 1000
+    }
+  ]
+}
