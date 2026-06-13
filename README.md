@@ -154,6 +154,32 @@ python main.py run --config examples/public_api_checks.json
 
 ---
 
+## Real-World Usage Flow
+
+Here is a typical end-to-end workflow to run, audit, and schedule local API health checks:
+
+1. **Run a health check suite**:
+   ```bash
+   python main.py run --config examples/public_api_checks.json
+   ```
+2. **Find the Run ID in your history**:
+   ```bash
+   python main.py history
+   ```
+3. **Export a standalone HTML report** (for sharing or archiving):
+   ```bash
+   python main.py export --run-id <run_id> --format html --output reports/latest.html
+   ```
+4. **Schedule ongoing local health checks** (repeating every 5 minutes):
+   ```bash
+   python main.py schedule --config examples/public_api_checks.json --every 300
+   ```
+
+> [!NOTE]
+> All exported reports and local run data are saved under the `reports/` folder. These generated files are intended for local audit use and are ignored in `.gitignore`, so they should generally not be committed to source control.
+
+---
+
 ## Scheduled Runs & Webhook Notifications
 
 API Sentinel provides a developer-focused, local scheduling command to execute your API health checks repeatedly at set intervals:
@@ -315,24 +341,30 @@ An example configuration file (`examples/api_checks.json`) looks like this:
 
 ---
 
-## Screenshots
+## Screenshots & Demo Artifacts
 
 ### CLI Execution Report
-
+Visual summary generated in the console on check completion:
 ![CLI Execution Report](screenshots/cli-report.png)
 
 ### Run History
-
+History list showing past runs stored in SQLite:
 ![Run History](screenshots/history.png)
 
 ### Streamlit Dashboard
-
+Web dashboard featuring latency trend charts and explorer tables:
 ![Streamlit Dashboard](screenshots/dashboard.png)
+
+### Standalone HTML Reports
+Exported run history files (`reports/run-<run_id>.html`) can be opened directly in any browser for auditing and sharing.
+
+*Note: Adding a recorded demo GIF of the CLI execution and scheduling loop is planned as a future documentation improvement.*
+
+---
 
 ## Future Improvements
 
 - **OpenAPI Schema Validation**: Auto-generate checks from OpenAPI descriptions.
-- **More Advanced Notification Targets**: Support for native Slack, Discord, and Email providers.
-- **Retry Policies**: Add standard retry strategies on network timeouts and glitches.
+- **More Advanced Notification Targets**: Add native Slack, Discord, and Email notification targets.
 - **Improved Nested JSON Validation**: Support complex JSON path traversals.
-- **Public API Example Configuration**: Ready-made templates for public services checks.
+- **Interactive TUI (Terminal User Interface)**: For live terminal monitoring.

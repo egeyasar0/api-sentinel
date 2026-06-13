@@ -271,4 +271,155 @@ def test_runner_options_method():
         assert run_result.results[0].passed is True
         assert run_result.results[0].actual_status == 200
 
+def test_runner_retry_default_no_retries():
+    config = ProjectConfig(
+        project_name="Retry default",
+        base_url="http://localhost:8000",
+        checks=[
+            CheckConfig(name="No retry check", method="GET", path="/health", expected_status=200)
+        ]
+    )
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value.__enter__.return_value
+        mock_client.get.side_effect = httpx.TimeoutException("timeout")
+        
+        run_result = run_checks(config)
+        
+        assert mock_client.get.call_count == 1
+        assert run_result.passed_checks == 0
+
+def test_runner_retry_timeout_exceeded():
+    config = ProjectConfig(
+        project_name="Retry Project",
+        base_url="http://localhost:8000",
+        retries={"enabled": True, "max_attempts": 3, "backoff_seconds": 0.001},
+        checks=[
+            CheckConfig(name="Check R", method="GET", path="/health", expected_status=200)
+        ]
+    )
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value.__enter__.return_value
+        mock_client.get.side_effect = httpx.TimeoutException("timeout")
+        
+        run_result = run_checks(config)
+        
+        assert mock_client.get.call_count == 3
+        assert run_result.passed_checks == 0
+        assert "Request failed after 3 attempts" in run_result.results[0].error_message
+
+def test_runner_retry_success_eventually():
+    config = ProjectConfig(
+        project_name="Retry Project",
+        base_url="http://localhost:8000",
+        retries={"enabled": True, "max_attempts": 3, "backoff_seconds": 0.001},
+        checks=[
+            CheckConfig(name="Check R", method="GET", path="/health", expected_status=200)
+        ]
+    )
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = '{"status": "ok"}'
+    
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value.__enter__.return_value
+        mock_client.get.side_effect = [httpx.ConnectError("fail"), mock_response]
+        
+        run_result = run_checks(config)
+        
+        assert mock_client.get.call_count == 2
+        assert run_result.passed_checks == 1
+        assert run_result.results[0].passed is True
+        assert "Succeeded after 2 attempts" in run_result.results[0].error_message
+
+def test_runner_retry_5xx_retried():
+    config = ProjectConfig(
+        project_name="Retry Project",
+        base_url="http://localhost:8000",
+        retries={"enabled": True, "max_attempts": 3, "backoff_seconds": 0.001},
+        checks=[
+            CheckConfig(name="Check R", method="GET", path="/health", expected_status=200)
+        ]
+    )
+    mock_500 = MagicMock()
+    mock_500.status_code = 500
+    mock_500.text = "Server Error"
+    
+    mock_200 = MagicMock()
+    mock_200.status_code = 200
+    mock_200.text = "OK"
+    
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value.__enter__.return_value
+        mock_client.get.side_effect = [mock_500, mock_200]
+        
+        run_result = run_checks(config)
+        
+        assert mock_client.get.call_count == 2
+        assert run_result.passed_checks == 1
+        assert "Succeeded after 2 attempts" in run_result.results[0].error_message
+
+def test_runner_retry_4xx_not_retried():
+    config = ProjectConfig(
+        project_name="Retry Project",
+        base_url="http://localhost:8000",
+        retries={"enabled": True, "max_attempts": 3, "backoff_seconds": 0.001},
+        checks=[
+            CheckConfig(name="Check R", method="GET", path="/health", expected_status=200)
+        ]
+    )
+    mock_404 = MagicMock()
+    mock_404.status_code = 404
+    mock_404.text = "Not Found"
+    
+    with patch("httpx.Client") as mock_client_class:
+        mock_client = mock_client_class.return_value.__enter__.return_value
+        mock_client.get.return_value = mock_404
+        
+        run_result = run_checks(config)
+        
+        # 4xx is validation error, should not retry
+        assert mock_client.get.call_count == 1
+        assert run_result.passed_checks == 0
+        assert "Expected status 200 but got 404" in run_result.results[0].error_message
+
+def test_runner_concurrency_same_structure():
+    config = ProjectConfig(
+        project_name="Concurrent Project",
+        base_url="http://localhost:8000",
+        checks=[
+            CheckConfig(name="C1", method="GET", path="/h1", expected_status=200),
+            CheckConfig(name="C2", method="GET", path="/h2", expected_status=200),
+        ]
+    )
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = '{"ok": true}'
+    
+    with patch("httpx.AsyncClient") as mock_async_client_class:
+        mock_client = mock_async_client_class.return_value.__aenter__.return_value
+        
+        async def mock_get(*args, **kwargs):
+            return mock_response
+        mock_client.get = mock_get
+        
+        run_result = run_checks(config, concurrency=2)
+        
+        assert run_result.total_checks == 2
+        assert run_result.passed_checks == 2
+        assert run_result.results[0].name == "C1"
+        assert run_result.results[1].name == "C2"
+
+def test_runner_concurrency_invalid():
+    config = ProjectConfig(
+        project_name="Concurrent Project",
+        base_url="http://localhost:8000",
+        checks=[
+            CheckConfig(name="C1", method="GET", path="/h1", expected_status=200),
+        ]
+    )
+    with pytest.raises(ValueError) as excinfo:
+        run_checks(config, concurrency=0)
+    assert "Concurrency must be at least 1" in str(excinfo.value)
+
 

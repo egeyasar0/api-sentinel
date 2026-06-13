@@ -199,3 +199,43 @@ def test_cli_export_html_default_path(tmp_path, monkeypatch):
     
     html_content = open(expected_default_path, "r", encoding="utf-8").read()
     assert "Default Path Project" in html_content
+
+def test_cli_run_concurrency_invalid(tmp_path):
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"project_name": "Test", "base_url": "http://localhost", "checks": []}', encoding="utf-8")
+    
+    result = runner.invoke(app, [
+        "run",
+        "--config", str(config_file),
+        "--concurrency", "0",
+        "--db", str(tmp_path / "test.db")
+    ])
+    assert result.exit_code == 1
+    assert "concurrency must be at least 1" in result.output.lower()
+
+def test_cli_run_concurrency_valid(tmp_path):
+    from unittest.mock import MagicMock, patch
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"project_name": "Test", "base_url": "http://localhost", "checks": []}', encoding="utf-8")
+    
+    with patch("api_sentinel.cli.run_checks") as mock_run_checks:
+        mock_run_checks.return_value = MagicMock(
+            project_name="Test",
+            started_at="2026-06-13T11:00:00Z",
+            finished_at="2026-06-13T11:00:05Z",
+            total_checks=0,
+            passed_checks=0,
+            failed_checks=0,
+            average_response_time_ms=0.0,
+            results=[]
+        )
+        
+        result = runner.invoke(app, [
+            "run",
+            "--config", str(config_file),
+            "--concurrency", "3",
+            "--db", str(tmp_path / "test.db")
+        ])
+        assert result.exit_code == 0
+        mock_run_checks.assert_called_once()
+        assert mock_run_checks.call_args[1]["concurrency"] == 3

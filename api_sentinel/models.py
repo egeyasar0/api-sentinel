@@ -2,6 +2,11 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator, HttpUrl
 
+class RetryConfig(BaseModel):
+    enabled: bool = Field(True, description="Enable or disable retries")
+    max_attempts: int = Field(3, ge=1, description="Maximum number of request attempts")
+    backoff_seconds: float = Field(0.5, ge=0.0, description="Delay between retry attempts in seconds")
+
 class CheckConfig(BaseModel):
     name: str = Field(..., description="Name of the API check")
     method: str = Field("GET", description="HTTP method to use (GET, POST, etc.)")
@@ -11,6 +16,7 @@ class CheckConfig(BaseModel):
     body: Optional[Dict[str, Any]] = Field(None, description="Optional request body for POST/PUT/PATCH requests")
     headers: Optional[Dict[str, str]] = Field(None, description="Optional HTTP headers for the request")
     expected_fields: Optional[List[str]] = Field(None, description="List of fields expected in the JSON response")
+    retries: Optional[RetryConfig] = Field(None, description="Optional per-check override for retry policy")
 
     @field_validator("path")
     @classmethod
@@ -52,6 +58,7 @@ class ProjectConfig(BaseModel):
     project_name: str = Field(..., description="Name of the project")
     base_url: str = Field(..., description="Base URL of the target API")
     auth: Optional[AuthConfig] = Field(default=None, description="Optional authentication settings")
+    retries: Optional[RetryConfig] = Field(default=None, description="Optional global default retry policy")
     checks: List[CheckConfig] = Field(..., description="List of API check configurations")
 
     @field_validator("base_url")

@@ -47,11 +47,20 @@ def run_cmd(
         "--db",
         envvar="API_SENTINEL_DB",
         help="Path to the SQLite database file."
+    ),
+    concurrency: int = typer.Option(
+        1,
+        "--concurrency",
+        help="Number of concurrent check tasks. Defaults to 1 (sequential)."
     )
 ):
     """
     Runs all endpoint checks in the selected config file.
     """
+    if concurrency < 1:
+        console.print("[bold red]Error:[/bold red] Concurrency must be at least 1.")
+        raise typer.Exit(code=1)
+
     try:
         project_config = load_config(config)
     except ConfigError as e:
@@ -65,7 +74,7 @@ def run_cmd(
     
     try:
         init_db(db)
-        run_result = run_checks(project_config, timeout_seconds=timeout)
+        run_result = run_checks(project_config, timeout_seconds=timeout, concurrency=concurrency)
     except Exception as e:
         console.print(f"[bold red]Execution Error during checks:[/bold red] {str(e)}")
         raise typer.Exit(code=1)

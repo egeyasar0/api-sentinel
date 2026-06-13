@@ -6,7 +6,7 @@ import httpx
 
 from api_sentinel.models import ProjectConfig, CheckConfig, TestRunResult, CheckResult
 from api_sentinel.scheduler import run_scheduler
-from api_sentinel.notifier import send_failure_notification
+from api_sentinel.notifier import send_failure_notification, notify_failures
 
 def test_interval_validation():
     config = ProjectConfig(
@@ -144,7 +144,7 @@ def test_missing_webhook_env_graceful():
 
     with patch("api_sentinel.scheduler.run_checks", return_value=mock_run_result):
         with patch("api_sentinel.scheduler.save_run"):
-            with patch("api_sentinel.scheduler.send_failure_notification") as mock_notify:
+            with patch("api_sentinel.scheduler.notify_failures") as mock_notify:
                 with patch.dict("os.environ", {}, clear=True):
                     # Should run without crashing, skipping webhook triggers since env is empty
                     run_scheduler(
@@ -187,7 +187,7 @@ def test_webhook_triggers_only_on_failure():
 
     with patch("api_sentinel.scheduler.run_checks", return_value=mock_success_result):
         with patch("api_sentinel.scheduler.save_run"):
-            with patch("api_sentinel.scheduler.send_failure_notification") as mock_notify:
+            with patch("api_sentinel.scheduler.notify_failures") as mock_notify:
                 with patch.dict("os.environ", {"API_WEBHOOK": "http://webhook"}):
                     run_scheduler(
                         config, 
@@ -240,3 +240,46 @@ def test_webhook_failure_does_not_crash_scheduler():
                         run_once=True,
                         db_path=":memory:"
                     )
+
+def test_telegram_notification_triggered():
+    mock_run_result = TestRunResult(
+        project_name="Telegram Project",
+        started_at="2026-06-07T10:00:00Z",
+        finished_at="2026-06-07T10:00:01Z",
+        total_checks=1,
+        passed_checks=0,
+        failed_checks=1,
+        average_response_time_ms=10.0,
+        results=[
+            CheckResult(
+                name="Check",
+                method="GET",
+                url="http://localhost:8000/health",
+                expected_status=200,
+                actual_status=500,
+                response_time_ms=10.0,
+                passed=False,
+                valid_json=False,
+                error_message="Fail"
+            )
+        ]
+    )
+    
+    with patch("httpx.post") as mock_post:
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+        
+        with patch.dict("os.environ", {
+            "API_SENTINEL_TELEGRAM_BOT_TOKEN": "bot123",
+            "API_SENTINEL_TELEGRAM_CHAT_ID": "chat456"
+        }):
+            notify_failures(mock_run_result)
+            
+            mock_post.assert_called_once()
+            called_args, called_kwargs = mock_post.call_args
+            assert "api.telegram.org/botbot123/sendMessage" in called_args[0]
+            payload = called_kwargs["json"]
+            assert payload["chat_id"] == "chat456"
+            assert "Telegram Project" in payload["text"]
+            assert "Failed checks" in payload["text"]

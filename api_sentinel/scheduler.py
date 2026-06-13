@@ -8,7 +8,7 @@ from rich.console import Console
 from api_sentinel.models import ProjectConfig
 from api_sentinel.runner import run_checks
 from api_sentinel.database import save_run
-from api_sentinel.notifier import send_failure_notification
+from api_sentinel.notifier import notify_failures
 
 console = Console()
 
@@ -82,11 +82,12 @@ def run_scheduler(
                 f"Avg latency: {run_result.average_response_time_ms:.1f} ms"
             )
 
-            # 4. Trigger Webhook Alert if failed
-            if run_result.failed_checks > 0 and webhook_url:
-                console.print("[cyan]Triggering failure webhook notification...[/cyan]")
-                # We do not print the actual webhook URL for security reasons
-                send_failure_notification(webhook_url, run_result)
+            # 4. Trigger failure notification if configured
+            if run_result.failed_checks > 0:
+                has_telegram = bool(os.environ.get("API_SENTINEL_TELEGRAM_BOT_TOKEN") and os.environ.get("API_SENTINEL_TELEGRAM_CHAT_ID"))
+                if webhook_url or has_telegram:
+                    console.print("[cyan]Triggering failure notifications...[/cyan]")
+                    notify_failures(run_result, webhook_url=webhook_url)
 
             if run_once:
                 break

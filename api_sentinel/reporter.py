@@ -62,7 +62,7 @@ def print_run_summary(run_result: TestRunResult) -> None:
             f"[{status_style}]{status_str}[/{status_style}]",
             latency_str,
             verdict,
-            f"[dim red]{error_details}[/dim red]" if not result.passed else "[dim green]OK[/dim green]"
+            f"[dim red]{error_details}[/dim red]" if not result.passed else f"[dim green]{result.error_message or 'OK'}[/dim green]"
         )
 
     console.print(table)
@@ -153,6 +153,7 @@ def print_detailed_run_report(run_details: Dict[str, Any], check_results: List[D
         status_style = "green" if check["actual_status"] == check["expected_status"] else "red"
         actual_status_str = str(check["actual_status"]) if check["actual_status"] is not None else "-"
         
+        err_style = "dim green" if check["passed"] == 1 else "dim red"
         table.add_row(
             check["check_name"],
             check["method"],
@@ -161,7 +162,7 @@ def print_detailed_run_report(run_details: Dict[str, Any], check_results: List[D
             f"[{status_style}]{actual_status_str}[/{status_style}]",
             f"{check['response_time_ms']:.1f} ms",
             verdict,
-            f"[dim red]{check['error_message'] or ''}[/dim red]"
+            f"[{err_style}]{check['error_message'] or ''}[/{err_style}]"
         )
 
     console.print(table)
@@ -203,7 +204,7 @@ def generate_html_report(run_details: Dict[str, Any], check_results: List[Dict[s
         if not passed:
             details_cell = f'<span class="error-message">{err_msg or "Validation failed"}</span>'
         else:
-            details_cell = '<span style="color: #777;">OK</span>'
+            details_cell = f'<span style="color: #777;">{err_msg or "OK"}</span>'
 
         rows.append(f"""
                 <tr>
