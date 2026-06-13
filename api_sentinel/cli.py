@@ -416,5 +416,8 @@ def schedule_cmd(
         console.print(f"[bold red]Scheduler failed:[/bold red] {str(e)}")
         raise typer.Exit(code=1)
 
-if __name__ == "__main__":
+def main():
     app()
+
+if __name__ == "__main__":
+    main()

@@ -116,10 +116,15 @@ pytest.ini
      source .venv/bin/activate
      ```
 
-3. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+3. **Install the Package**:
+   * **Option A: Standard dependency installation**:
+     ```bash
+     pip install -r requirements.txt
+     ```
+   * **Option B: Editable installation (recommends for console script)**:
+     ```bash
+     pip install -e .
+     ```
 
 ---
 
@@ -149,7 +154,11 @@ This command prompts you for project metadata, authentication details, and the c
 
 To execute the check suite against your API:
 ```bash
+# Using main.py directly
 python main.py run --config examples/api_checks.json
+
+# Using the installed console script
+api-sentinel run --config examples/api_checks.json
 ```
 
 ---
@@ -159,7 +168,11 @@ python main.py run --config examples/api_checks.json
 API Sentinel can also test external endpoints. An example configuration file is provided to verify a public API:
 
 ```bash
+# Using main.py directly
 python main.py run --config examples/public_api_checks.json
+
+# Using the installed console script
+api-sentinel run --config examples/public_api_checks.json
 ```
 
 *Note: Results of external API checks may vary depending on internet connectivity, network latency, and the availability of the target service.*
@@ -381,6 +394,17 @@ An example configuration file (`examples/api_checks.json`) looks like this:
 
 ---
 
+## Production-Readiness Considerations
+
+API Sentinel is a reliable, developer-focused local tool suitable for development workflows and lightweight API auditing. It is not designed to replace full production monitoring platforms.
+
+Please consider the following:
+- **Local Scope**: Scheduled checks run only while the CLI process remains active in your terminal. They do not run as a background service or daemon.
+- **SQLite History**: Run records are stored in a local SQLite database file, which is intended for local querying and developer auditing.
+- **Secrets Resolution**: Sensitive authentication tokens, request bodies, and notification configurations are resolved from local environment variables and are never committed to your repository.
+
+---
+
 ## Screenshots & Demo Artifacts
 
 ### CLI Execution Report
@@ -399,12 +423,3 @@ Web dashboard featuring latency trend charts and explorer tables:
 Exported run history files (`reports/run-<run_id>.html`) can be opened directly in any browser for auditing and sharing.
 
 *Note: Adding a recorded demo GIF of the CLI execution and scheduling loop is planned as a future documentation improvement.*
-
----
-
-## Future Improvements
-
-- **OpenAPI Schema Validation**: Auto-generate checks from OpenAPI descriptions.
-- **More Advanced Notification Targets**: Add native Slack, Discord, and Email notification targets.
-- **Improved Nested JSON Validation**: Support complex JSON path traversals.
-- **Interactive TUI (Terminal User Interface)**: For live terminal monitoring.

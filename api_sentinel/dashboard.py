@@ -42,10 +42,19 @@ st.markdown("""
 
 DB_PATH = "api_sentinel.db"
 
+from contextlib import contextmanager
+
 def get_db_connection():
+    return _db_connection_context()
+
+@contextmanager
+def _db_connection_context():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 # Helper functions for database retrieval
 def fetch_runs_df() -> pd.DataFrame:

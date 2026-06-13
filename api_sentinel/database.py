@@ -1,12 +1,17 @@
 import sqlite3
+from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 from api_sentinel.models import TestRunResult, CheckResult
 
-def get_connection(db_path: str = "api_sentinel.db") -> sqlite3.Connection:
-    """Returns a connection to the SQLite database with row factory set to dict."""
+@contextmanager
+def get_connection(db_path: str = "api_sentinel.db"):
+    """Returns a connection context manager to the SQLite database with row factory set to dict."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 # TODO: Introduce a DatabaseManager lifecycle class to handle database initialization once instead of calling init_db before every operation.
 def init_db(db_path: str = "api_sentinel.db") -> None:
