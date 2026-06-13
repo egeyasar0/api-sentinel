@@ -197,7 +197,7 @@ Here is a typical end-to-end workflow to run, audit, and schedule local API heal
    ```
 4. **Export a standalone HTML report** (for sharing or archiving):
    ```bash
-   python main.py export --run-id <run_id> --format html --output reports/latest.html
+   python main.py export --run-id RUN_ID --format html --output reports/latest.html
    ```
 5. **Schedule ongoing local health checks** (repeating every 5 minutes):
    ```bash
@@ -238,7 +238,7 @@ These alerts are sent directly from the process memory and the credentials are n
 
 ### Limitations
 - **Local Loop Only**: The scheduling loop executes locally within the active CLI process. If you terminate the terminal command (e.g. via `Ctrl+C`), checks will stop running.
-- **Not a Production Monitoring System**: This local loop is meant as a developer-focused scheduling helper. It does not replace enterprise-grade uptime monitoring platforms.
+- **Not a Production Monitoring System**: This local loop is meant as a developer-focused scheduling helper. It does not replace full production monitoring platforms.
 - **Secrets Resolution**: The webhook URLs must be loaded via environment variables and should not be persisted in configuration files, database tables, or test summary exports.
 
 ---
@@ -324,8 +324,8 @@ pytest --cov=api_sentinel --cov-report=term-missing
 
 API Sentinel provides basic, environment-variable based authentication support for API health checks. It supports:
 - **No Auth**: No authorization header will be attached.
-- **Bearer Token**: Reads a Bearer token value from a configured environment variable name at runtime and injects `Authorization: Bearer <value>`.
-- **API Key Header**: Reads an API key value from a configured environment variable name at runtime and injects `<key_name>: <value>`.
+- **Bearer Token**: Reads a Bearer token value from a configured environment variable name at runtime and injects `Authorization: Bearer TOKEN_VALUE`.
+- **API Key Header**: Reads an API key value from a configured environment variable name at runtime and injects `HEADER_NAME: KEY_VALUE`.
 - **Dynamic Token Fetch**: Logs in dynamically once per execution run, extracts a token from the JSON response using a dot path, and injects it into subsequent check requests.
 
 To configure dynamic token fetch:
@@ -420,6 +420,4 @@ Web dashboard featuring latency trend charts and explorer tables:
 ![Streamlit Dashboard](screenshots/dashboard.png)
 
 ### Standalone HTML Reports
-Exported run history files (`reports/run-<run_id>.html`) can be opened directly in any browser for auditing and sharing.
-
-*Note: Adding a recorded demo GIF of the CLI execution and scheduling loop is planned as a future documentation improvement.*
+Exported run history files (`reports/run-RUN_ID.html`) can be opened directly in any browser for auditing and sharing.
